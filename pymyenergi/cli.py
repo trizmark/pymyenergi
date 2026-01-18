@@ -49,6 +49,7 @@ async def main(args):
     conn = Connection(username, password, app_password, app_email)
     if app_email and app_password:
         await conn.discoverLocations()
+        await conn.discoverHubs()
     if args.debug:
         logging.root.setLevel(logging.DEBUG)
     client = MyenergiClient(conn)
