@@ -49,6 +49,7 @@ class Connection:
             self.oauth_headers = {"Authorization": f"Bearer {self.oauth.access_token}"}
         self.do_query_asn = True
         self.invitation_id = ""
+        self.hub_id = ""
         _LOGGER.debug("New connection created")
 
     def _checkMyenergiServerURL(self, responseHeader):
@@ -71,6 +72,13 @@ class Connection:
                 self.invitation_id = locs["content"][0]["invitationData"][
                     "invitationId"
                 ]
+
+    async def discoverHubs(self):
+        if self.app_email and self.app_password:
+            # extract the first hub id
+            hubs = await self.get("/api/Product/UserHubsAndDevices", oauth=True)
+            if hubs["content"]["hubs"][0]["hub"]["id"]:
+                self.hub_id = hubs["content"]["hubs"][0]["hub"]["id"]
 
     def checkAndUpdateToken(self):
         # check if we have oauth credentials
