@@ -120,6 +120,13 @@ async def main(args):
                         sys.exit("The charge target must be specified in Wh")
                     await device.set_charge_target(args.arg[0])
                     print(f"Charge target was set to {args.arg[0]}Wh")
+                elif args.action == 'gettariff' and args.command == LIBBI:
+                    tariff = await device.get_tariff()
+                    print(f"Tariff information: {tariff}")
+                elif args.action == 'settariff' and args.command == LIBBI:
+                    if len(args.arg) < 1:
+                        sys.exit("The new tariff must be specified")
+                    await device.set_tariff(args.arg[0])
                 elif args.action == "mingreen" and args.command == ZAPPI:
                     if len(args.arg) < 1:
                         sys.exit("A minimum green level must be provided")
@@ -262,6 +269,8 @@ def cli():
             "energy",
             "chargefromgrid",
             "chargetarget",
+            "gettariff",
+            "settariff"
         ],
     )
     subparser_libbi.add_argument("arg", nargs="*")

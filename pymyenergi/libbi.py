@@ -1,4 +1,5 @@
 from pymyenergi.connection import Connection
+import json
 
 from . import LIBBI
 from .base_device import BaseDevice
@@ -357,6 +358,45 @@ class Libbi(BaseDevice):
             return True
         else:
             return False
+
+    async def get_tariff(self):
+        """Get tariff (price bands, slots)"""
+        # We 'condense' the tariff config - rather than listing each band separately,
+        # we establish a default price (most used band) and list the remaining bands separately
+        return self.energy_setup
+
+    async def set_tariff(self, tariff):
+        """Set tariff (price bands, slots)"""
+#  example tariff config
+#  [
+#    {
+#      "default_price" : 15.0,
+#      "days" : [
+#        0,
+#        1,
+#        2
+#      ],
+#      "bands" : [
+#        {
+#          "from" : 120,
+#          "to" : 300,
+#          "price" : 1.0
+#        }
+#      ]
+#   }
+# ]
+#
+        # sanity checks first - is it actually a valid JSON
+        try:
+            js = json.loads(tariff)
+        except ValueError as e:
+            return False
+        # do we have all the days specified
+        day_usage_count = [0, 0, 0, 0, 0, 0, 0]
+#        for t in js:
+#            if "days" in t:
+                
+        return True
 
     def show(self, short_format=False):
         """Returns a string with all data in human readable format"""
