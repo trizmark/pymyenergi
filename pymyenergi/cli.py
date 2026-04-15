@@ -88,7 +88,7 @@ async def main(args):
                 # otherwise only get the specified device
                 devices = [device_factory(conn, args.command, args.serial)]
                 await devices[0].refresh()
-            
+
             # iterate through the devices and execute the requested action
             for device in devices:
                 if args.action == "show":
