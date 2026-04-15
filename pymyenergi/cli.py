@@ -126,7 +126,11 @@ async def main(args):
                 elif args.action == 'settariff' and args.command == LIBBI:
                     if len(args.arg) < 1:
                         sys.exit("The new tariff must be specified")
-                    await device.set_tariff(args.arg[0])
+                    if (await device.set_tariff(args.arg[0])):
+                        print("Tariff was updated. New tariff information:")
+                        print(device.showTariff())
+                    else:
+                        print("Failed to update tariff, check the provided tariff information")
                 elif args.action == "mingreen" and args.command == ZAPPI:
                     if len(args.arg) < 1:
                         sys.exit("A minimum green level must be provided")
