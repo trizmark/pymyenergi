@@ -1,8 +1,4 @@
 #! /usr/bin/env python3
-from sys import path
-
-path.insert(0, ".")
-
 from pymyenergi.cli import cli
 import asyncio
 
