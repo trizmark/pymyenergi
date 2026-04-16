@@ -185,7 +185,7 @@ Tariff specification
 
 * ```days``` is an array with 0 being Sunday, 1 is Monday and so on.
 * ```default_price``` is optional. If specified any timeslot not explicitly defined will have a default price. If not specified, the timeslot definitions have to cover the whole day.
-* ```bands``` is a list of bands with a ```from``` and ```to``` time (expressed as minutes since midnight) and a ```price```.  
+* ```bands``` is a list of bands with a ```from``` and ```to``` time (expressed as minutes since midnight) and a ```price```. Each timeslot is 30 minutes long and the ```from``` and ```to``` fields have to fall exactly on 30 minute boundaries (e.g 0, 30, 60, 90, etc).
 
 Simple tariff with a cheap interval between 02:00 and 05:00
 ```json
