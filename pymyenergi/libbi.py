@@ -364,16 +364,47 @@ class Libbi(BaseDevice):
 
     async def get_tariff(self):
         """Get tariff (price bands, slots)"""
-        # We 'condense' the tariff config - rather than listing each band separately,
-        # we establish a default price (most used band) and list the remaining bands separately
-        return self.energy_setup
+        # Condense the raw energy_setup into a compact representation:
+        # find the price that covers the most minutes per day-group, declare it as
+        # default_price and only list the remaining (non-default) bands.
+        # Field names are also normalised: fromMinutes->from, toMinutes->to.
+        if self.energy_setup is None:
+            return None
+
+        condensed = []
+        for block in self.energy_setup:
+            # Tally total minutes covered by each price.
+            minutes_per_price = {}
+            for band in block.get("tariffs", []):
+                p = band["price"]
+                duration = band["toMinutes"] - band["fromMinutes"]
+                minutes_per_price[p] = minutes_per_price.get(p, 0) + duration
+
+            # The price covering the most time becomes the default.
+            default_price = max(minutes_per_price, key=lambda p: minutes_per_price[p])
+
+            # Only keep bands whose price differs from the default.
+            non_default_bands = [
+                {"from": band["fromMinutes"], "to": band["toMinutes"], "price": band["price"]}
+                for band in block.get("tariffs", [])
+                if band["price"] != default_price
+            ]
+
+            condensed_block = {
+                "days": block["days"],
+                "default_price": default_price,
+                "bands": non_default_bands,
+            }
+            condensed.append(condensed_block)
+
+        return condensed
 
     async def set_tariff(self, tariff):
         """Set tariff (price bands, slots)"""
 #  example tariff config
 #  [
 #    {
-#      "default_price" : 15.0,
+#      "default_price" : 15,
 #      "days" : [
 #        0,
 #        1,
@@ -383,7 +414,7 @@ class Libbi(BaseDevice):
 #        {
 #          "from" : 120,
 #          "to" : 300,
-#          "price" : 1.0
+#          "price" : 1
 #        }
 #      ]
 #   }
@@ -393,9 +424,11 @@ class Libbi(BaseDevice):
         try:
             js = json.loads(tariff)
         except ValueError:
+            _LOGGER.debug("Invalid JSON format for tariff configuration")
             return False
 
         if not isinstance(js, list):
+            _LOGGER.debug("Invalid JSON format for tariff configuration: expected a list")
             return False
 
         # do we have all the days specified
@@ -421,7 +454,7 @@ class Libbi(BaseDevice):
         translated_tariff = []
         for tariff_block in js:
             default_price = tariff_block.get("default_price")
-            if not isinstance(default_price, (int, float)):
+            if default_price is not None and not isinstance(default_price, (int, float)):
                 _LOGGER.debug("Invalid default price, must be a number")
                 return False
 
@@ -469,6 +502,9 @@ class Libbi(BaseDevice):
                     return False
 
                 if band["fromMinutes"] > cursor:
+                    if default_price is None:
+                        _LOGGER.debug("Bands do not cover the full day and no default_price is set")
+                        return False
                     merged_bands.append(
                         {
                             "fromMinutes": cursor,
@@ -481,6 +517,9 @@ class Libbi(BaseDevice):
                 cursor = band["toMinutes"]
 
             if cursor < 1440:
+                if default_price is None:
+                    _LOGGER.debug("Bands do not cover the full day and no default_price is set")
+                    return False
                 merged_bands.append(
                     {
                         "fromMinutes": cursor,

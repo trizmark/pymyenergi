@@ -156,7 +156,8 @@ async def main(args):
                 elif args.action == 'gettariff':
                     if args.command == LIBBI and isinstance(device, Libbi):
                         tariff = await device.get_tariff()
-                        print(f"Tariff information: {tariff}")
+                        print(f"Tariff information:")
+                        print(json.dumps(tariff, indent=2))
 
                 elif args.action == 'settariff':
                     if args.command == LIBBI and isinstance(device, Libbi):

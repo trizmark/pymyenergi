@@ -143,3 +143,90 @@ async def test_set_tariff_requires_app_credentials():
 
     assert await libbi.set_tariff(json.dumps(tariff)) is False
     conn.post.assert_not_awaited()
+
+
+async def test_set_tariff_no_default_price_with_full_coverage():
+    """Tariff without default_price should be accepted when bands cover the full day."""
+    conn = MockLibbiConnection()
+    libbi = Libbi(conn, 24047164)
+    tariff = [
+        {
+            "days": [0, 1, 2],
+            "bands": [
+                {"from": 0, "to": 720, "price": 15.0},
+                {"from": 720, "to": 1440, "price": 1.0},
+            ],
+        },
+        {
+            "days": [3, 4, 5, 6],
+            "bands": [
+                {"from": 0, "to": 1440, "price": 5.0},
+            ],
+        },
+    ]
+
+    assert await libbi.set_tariff(json.dumps(tariff)) is True
+    conn.post.assert_awaited_once()
+
+
+async def test_set_tariff_no_default_price_with_gap_fails():
+    """Tariff without default_price should fail when bands leave a gap."""
+    conn = MockLibbiConnection()
+    libbi = Libbi(conn, 24047164)
+    tariff = [
+        {
+            "days": [0, 1, 2],
+            "bands": [
+                {"from": 0, "to": 720, "price": 15.0},
+                # gap: 720-1440 is not covered
+            ],
+        },
+        {
+            "days": [3, 4, 5, 6],
+            "bands": [
+                {"from": 0, "to": 1440, "price": 5.0},
+            ],
+        },
+    ]
+
+    assert await libbi.set_tariff(json.dumps(tariff)) is False
+    conn.post.assert_not_awaited()
+
+
+async def test_get_tariff_condenses_to_default_price():
+    """get_tariff should identify the most-used price as default and omit its bands."""
+    conn = MockLibbiConnection()
+    libbi = Libbi(conn, 24047164)
+    # Simulate cached energy_setup (remote API format).
+    libbi._extra_data["energy_setup"] = [
+        {
+            "days": [0, 1, 2],
+            "tariffs": [
+                {"fromMinutes": 0, "toMinutes": 120, "price": 15.0},
+                {"fromMinutes": 120, "toMinutes": 300, "price": 1.0},
+                {"fromMinutes": 300, "toMinutes": 1440, "price": 15.0},
+            ],
+        },
+        {
+            "days": [3, 4, 5, 6],
+            "tariffs": [
+                {"fromMinutes": 0, "toMinutes": 120, "price": 1.0},
+                {"fromMinutes": 120, "toMinutes": 1440, "price": 15.0},
+            ],
+        },
+    ]
+
+    result = await libbi.get_tariff()
+
+    assert result == [
+        {
+            "days": [0, 1, 2],
+            "default_price": 15.0,
+            "bands": [{"from": 120, "to": 300, "price": 1.0}],
+        },
+        {
+            "days": [3, 4, 5, 6],
+            "default_price": 15.0,
+            "bands": [{"from": 0, "to": 120, "price": 1.0}],
+        },
+    ]
