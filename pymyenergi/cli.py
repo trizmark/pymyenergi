@@ -10,11 +10,10 @@ from getpass import getpass
 from pymyenergi.client import MyenergiClient
 from pymyenergi.client import device_factory
 from pymyenergi.connection import Connection
-from pymyenergi.eddi import BOOST_TARGETS
-from pymyenergi.eddi import EDDI_MODES
+from pymyenergi.eddi import BOOST_TARGETS, EDDI_MODES, Eddi
 from pymyenergi.exceptions import WrongCredentials
-from pymyenergi.libbi import LIBBI_MODES
-from pymyenergi.zappi import CHARGE_MODES
+from pymyenergi.libbi import LIBBI_MODES, Libbi
+from pymyenergi.zappi import CHARGE_MODES, Zappi
 
 from . import EDDI
 from . import HARVI
@@ -105,12 +104,13 @@ async def main(args):
                         for key in data.keys():
                             print(f"{key}: {data[key]}kWh")
 
-                elif args.action == "stop" and args.command == ZAPPI:
-                    await device.stop_charge()
-                    print("Charging was stopped")
+                elif args.action == "stop":
+                    if args.command == ZAPPI and isinstance(device, Zappi):
+                        await device.stop_charge()
+                        print("Charging was stopped")
 
                 elif args.action == "mode":
-                    if args.command == ZAPPI:
+                    if args.command == ZAPPI and isinstance(device, Zappi):
                         if (
                             len(args.arg) < 1
                             or args.arg[0].capitalize() not in CHARGE_MODES
@@ -119,13 +119,13 @@ async def main(args):
                             sys.exit(f"A mode must be specifed, one of {modes}")
                         await device.set_charge_mode(args.arg[0])
                         print(f"Charging was set to {args.arg[0].capitalize()}")
-                    elif args.command == EDDI:
+                    elif args.command == EDDI and isinstance(device, Eddi):
                         if len(args.arg) < 1 or args.arg[0].capitalize() not in EDDI_MODES:
                             modes = ", ".join(EDDI_MODES)
                             sys.exit(f"A mode must be specifed, one of {modes}")
                         await device.set_operating_mode(args.arg[0])
                         print(f"Operating mode was set to {args.arg[0].capitalize()}")
-                    elif args.command == LIBBI:
+                    elif args.command == LIBBI and isinstance(device, Libbi):
                         if len(args.arg) < 1 or args.arg[0].capitalize() not in LIBBI_MODES:
                             modes = ", ".join(LIBBI_MODES)
                             sys.exit(f"A mode must be specifed, one of {modes}")
@@ -133,19 +133,19 @@ async def main(args):
                         print(f"Operating mode was set to {args.arg[0].capitalize()}")
 
                 elif args.action == "chargefromgrid":
-                    if args.command == LIBBI:
+                    if args.command == LIBBI and isinstance(device, Libbi):
                         if len(args.arg) < 1 or args.arg[0].capitalize() not in [
                             "True",
                             "False",
                         ]:
                             sys.exit("A mode must be specifed, one of true or false")
-                    if (await device.set_charge_from_grid(args.arg[0])):
-                        print(f"Charge from grid was set to {args.arg[0].capitalize()}")
-                    else:
-                        print(f"Could not set charge from grid")
+                        if (await device.set_charge_from_grid(args.arg[0])):
+                            print(f"Charge from grid was set to {args.arg[0].capitalize()}")
+                        else:
+                            print(f"Could not set charge from grid")
 
                 elif args.action == "chargetarget":
-                    if args.command == LIBBI:
+                    if args.command == LIBBI and isinstance(device, Libbi):
                         if len(args.arg) < 1 or not args.arg[0].isnumeric():
                             sys.exit("The charge target must be specified in Wh")
                         if (await device.set_charge_target(args.arg[0])):
@@ -154,12 +154,12 @@ async def main(args):
                             print(f"Could not set charge target")
 
                 elif args.action == 'gettariff':
-                    if args.command == LIBBI:
+                    if args.command == LIBBI and isinstance(device, Libbi):
                         tariff = await device.get_tariff()
                         print(f"Tariff information: {tariff}")
 
                 elif args.action == 'settariff':
-                    if args.command == LIBBI:
+                    if args.command == LIBBI and isinstance(device, Libbi):
                         if len(args.arg) < 1:
                             sys.exit("The new tariff must be specified")
                         if (await device.set_tariff(args.arg[0])):
@@ -169,19 +169,19 @@ async def main(args):
                             print("Failed to update tariff")
 
                 elif args.action == "mingreen":
-                    if args.command == ZAPPI:
+                    if args.command == ZAPPI and isinstance(device, Zappi):
                         if len(args.arg) < 1:
                             sys.exit("A minimum green level must be provided")
                         await device.set_minimum_green_level(args.arg[0])
                         print(f"Minimum green level was set to {args.arg[0]}")
 
                 elif args.action == "boost":
-                    if args.command == ZAPPI:
+                    if args.command == ZAPPI and isinstance(device, Zappi):
                         if (await device.start_boost(args.arg[0])):
                             print(f"Start boosting with {args.arg[0]}kWh")
                         else:
                             print("Could not start boost, charge mode must be Eco or Eco+")
-                    elif args.command == EDDI:
+                    elif args.command == EDDI and isinstance(device, Eddi):
                         if len(args.arg) < 2 or args.arg[0] not in BOOST_TARGETS:
                             targets = ", ".join(BOOST_TARGETS)
                             sys.exit(
@@ -193,7 +193,7 @@ async def main(args):
                             print("Could not start boost")
 
                 elif args.action == "priority":
-                    if (args.command in [EDDI, ZAPPI, LIBBI]):
+                    if (args.command in [EDDI, ZAPPI, LIBBI]) and isinstance(device, (Eddi, Zappi, Libbi)):
                         if len(args.arg) < 1:
                             sys.exit("A priority must be specifed, a number")
                         if (await device.set_priority(args.arg[0])):
@@ -202,7 +202,7 @@ async def main(args):
                             print("Could not set device priority")
 
                 elif args.action == "heaterpriority":
-                    if args.command == EDDI:
+                    if args.command == EDDI and isinstance(device, Eddi):
                         if len(args.arg) < 1 or args.arg[0] not in BOOST_TARGETS:
                             targets = ", ".join(BOOST_TARGETS)
                             sys.exit(
@@ -214,7 +214,7 @@ async def main(args):
                             print("Could not set heater priority")
 
                 elif args.action == "smart-boost":
-                    if args.command == ZAPPI:
+                    if args.command == ZAPPI and isinstance(device, Zappi):
                         if await device.start_smart_boost(args.arg[0], args.arg[1]):
                             print(
                                 f"Start smart boosting with {args.arg[0]}kWh complete by {args.arg[1]}"
