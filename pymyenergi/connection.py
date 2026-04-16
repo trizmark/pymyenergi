@@ -90,6 +90,8 @@ class Connection:
     async def send(self, method, url, json=None, oauth=False):
         # Use OAuth for myaccount.myenergi.com
         if oauth:
+            # update the token if needed
+            self.checkAndUpdateToken()
             # check if we have oauth credentials
             if self.app_email and self.app_password:
                 theUrl = self.oauth_base_url + url
