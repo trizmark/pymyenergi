@@ -139,6 +139,8 @@ class Libbi(BaseDevice):
                 tariffsToSave.append(tariffToAdd)
             self._extra_data["energy_setup"] = tariffsToSave
 
+            # this will handle the export margin and associated information
+            await super().refresh_extra()
 
     @property
     def kind(self):
@@ -654,6 +656,10 @@ class Libbi(BaseDevice):
             ret = ret + f"{self.charge_target}kWh\n"
         else:
             ret = ret + "<unavailable>\n"
+        if self.export_margin_information is not None:
+            ret = ret + f"Export margin: {self.export_margin_information}\n"
+        else:
+            ret = ret + "Export margin: <unavailable>\n"
         if self.ct1.name is not None:
             ret = ret + f"CT 1 {self.ct1.name} {self.ct1.power}W phase {self.ct1.phase}\n"
         if self.ct2.name is not None:

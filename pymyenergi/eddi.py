@@ -219,7 +219,7 @@ class Eddi(BaseDevice):
         if self.name:
             name = f" {self.name}"
         ret = ret + f"Eddi S/N {self.serial_number}"
-        ret = ret + f"{name} version {self.firmware_version}\n\n"
+        ret = ret + f"{name} version {self.firmware_version}"
         if short_format:
             return ret
         ret = ret.center(80, "-") + "\n"
@@ -239,4 +239,8 @@ class Eddi(BaseDevice):
             ret = ret + f"Temp {self.temp_name_2}: {self.temp_2}C\n"
         for key in self.ct_keys:
             ret = ret + f"Energy {key} {self.history_data.get(key, 0)}Wh\n"
+        if self.export_margin_information is not None:
+            ret = ret + f"Export margin: {self.export_margin_information}\n"
+        else:
+            ret = ret + "Export margin: <unavailable>\n"
         return ret

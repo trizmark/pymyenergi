@@ -1,9 +1,11 @@
+import json
 import logging
 from abc import ABC
 from abc import abstractmethod
 from datetime import datetime
 from datetime import timedelta
 from datetime import timezone
+from urllib.parse import quote
 
 from pymyenergi.connection import Connection
 
@@ -62,10 +64,31 @@ class BaseDevice(ABC):
         self._connection = connection
         self._serialno = serialno
         self._data = data or {}
+        self._extra_data = {}
         self._name = None
         self.is_vhub_enabled = self._data.get("isVHubEnabled", False)
         self.ct_groups = {}
         self.refresh_ct_groups()
+
+    async def refresh_extra(self):
+        # only refresh this data if we have app credentials
+        if self._connection.app_email and self._connection.app_password:
+            q = {}
+            # skipping this results in a 200 + 400 response
+            # adding this results in a 200 + 501 response (this is what the app does)
+            # myenergi needs to fix this in their API
+            q["0"] = {"deviceSerialNo": self.serial_number}
+            q["1"] = {"deviceSerialNo": self.serial_number, "product": self.kind.lower()}
+
+            # fetch the export margin and associated information
+            exportMargin = await self._connection.get(
+                '/device.userDeviceSettings.getSettings,device.info.getByProduct?batch=1&input=' + quote(json.dumps(q, separators=(',', ':'))),
+                oauth=True,
+                appApi=True
+            )
+            self._extra_data["export_margin_value"] = exportMargin[0]['result']['data']['config']['exportMargin']
+            self._extra_data["export_margin_editable"] = exportMargin[0]['result']['data']['isEditable']
+            self._extra_data["export_margin_controller"] = exportMargin[0]['result']['data']['isController']
 
     @property
     @abstractmethod
@@ -232,6 +255,51 @@ class BaseDevice(ABC):
     def data(self):
         """All device data"""
         return self._data
+
+    @property
+    def export_margin_value(self):
+        """Export margin value"""
+        if self._connection.app_email and self._connection.app_password:
+            return self._extra_data.get("export_margin_value")
+        else:
+            return None
+
+    @property
+    def export_margin_editable(self):
+        """Is the export margin editable?"""
+        if self._connection.app_email and self._connection.app_password:
+            return self._extra_data.get("export_margin_editable")
+        else:
+            return None
+
+    @property
+    def export_margin_controller(self):
+        """Is the export margin controlled?"""
+        if self._connection.app_email and self._connection.app_password:
+            return self._extra_data.get("export_margin_controller")
+        else:
+            return None
+
+    @property
+    def export_margin_information(self):
+        """Export margin information, combined into a single string for display purposes"""
+        if self._connection.app_email and self._connection.app_password:
+            # if the device is not a controller, the export margin value is not available
+            if self._extra_data.get("export_margin_controller"):
+                ret = str(self._extra_data.get("export_margin_value")) + "W ["
+            else:
+                ret = "???W ["
+
+            if self.export_margin_editable:
+                ret = ret + "editable"
+            if self.export_margin_controller:
+                if self.export_margin_editable:
+                    ret = ret + ", "
+                ret = ret + "controller"
+            ret = ret + "]"
+            return ret
+        else:
+            return None
 
     def refresh_ct_groups(self):
         groups = {}

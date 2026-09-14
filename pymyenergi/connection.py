@@ -35,6 +35,7 @@ class Connection:
         self.timeout = timeout
         self.director_url = "https://director.myenergi.net"
         self.base_url = None
+        self.api_url = None
         self.asyncClient = asyncClient
         self.oauth_base_url = "https://myaccount.myenergi.com"
         self.username = username
@@ -58,6 +59,7 @@ class Connection:
             if new_url != self.base_url:
                 _LOGGER.info(f"Updated myenergi active server to {new_url}")
             self.base_url = new_url
+            self.api_url = "https://app-api." + responseHeader["X_MYENERGI-asn"]
         else:
             _LOGGER.debug(
                 "Myenergi ASN not found in Myenergi header, assume auth failure (bad username)"
@@ -87,20 +89,26 @@ class Connection:
             self.oauth.check_token()
             self.oauth_headers = {"Authorization": f"Bearer {self.oauth.access_token}"}
 
-    async def send(self, method, url, json=None, oauth=False):
+    async def send(self, method, url, json=None, oauth=False, appApi=False):
         # Use OAuth for myaccount.myenergi.com
         if oauth:
             # update the token if needed
             self.checkAndUpdateToken()
+
             # check if we have oauth credentials
             if self.app_email and self.app_password:
-                theUrl = self.oauth_base_url + url
+                if (appApi):
+                    theUrl = self.api_url + url
+                else:
+                    theUrl = self.oauth_base_url + url
+
                 # if we have an invitiation id, we need to add that to the query
                 if self.invitation_id != "":
                     if "?" in theUrl:
                         theUrl = theUrl + "&invitationId=" + self.invitation_id
                     else:
                         theUrl = theUrl + "?invitationId=" + self.invitation_id
+
                 try:
                     _LOGGER.debug(f"{method} {url} {theUrl}")
                     response = await self.asyncClient.request(
@@ -114,7 +122,9 @@ class Connection:
                     raise TimeoutException()
                 else:
                     _LOGGER.debug(f"{method} status {response.status_code}")
-                    if response.status_code == 200:
+                    # we need to temporarily accept 207 as the myenergi API returns a 200 and a 501 for the export margin control
+                    # this is how their app works !!!
+                    if response.status_code == 200 or response.status_code == 207:
                         return response.json()
                     elif response.status_code == 401:
                         raise WrongCredentials()
@@ -167,14 +177,14 @@ class Connection:
                 self.do_query_asn = True
                 raise MyenergiException(response.status_code)
 
-    async def get(self, url, data=None, oauth=False):
-        return await self.send("GET", url, data, oauth)
+    async def get(self, url, data=None, oauth=False, appApi=False):
+        return await self.send("GET", url, data, oauth, appApi)
 
-    async def post(self, url, data=None, oauth=False):
-        return await self.send("POST", url, data, oauth)
+    async def post(self, url, data=None, oauth=False, appApi=False):
+        return await self.send("POST", url, data, oauth, appApi)
 
-    async def put(self, url, data=None, oauth=False):
-        return await self.send("PUT", url, data, oauth)
+    async def put(self, url, data=None, oauth=False, appApi=False):
+        return await self.send("PUT", url, data, oauth, appApi)
 
-    async def delete(self, url, data=None, oauth=False):
-        return await self.send("DELETE", url, data, oauth)
+    async def delete(self, url, data=None, oauth=False, appApi=False):
+        return await self.send("DELETE", url, data, oauth, appApi)

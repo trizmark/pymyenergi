@@ -260,9 +260,12 @@ class MyenergiClient:
                     )
                     existing_device.data = device_data
 
-                # Update the extra information available on libbi
+                # Update the extra information available on libbi, eddi or zappi
                 # this is the bit that requires OAuth
-                if existing_device.kind == LIBBI and isinstance(existing_device, Libbi):
+                if (existing_device.kind == LIBBI and isinstance(existing_device, Libbi) or
+                    existing_device.kind == EDDI and isinstance(existing_device, Eddi) or
+                    existing_device.kind == ZAPPI and isinstance(existing_device, Zappi)
+                ):
                     await existing_device.refresh_extra()
         self._calculate_totals()
 

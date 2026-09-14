@@ -326,6 +326,10 @@ class Zappi(BaseDevice):
         ret = ret + f" {self.smart_boost_start_hour}:{self.smart_boost_start_minute}"
         ret = ret + f" add {self.smart_boost_amount}kWh\n"
         ret = ret + f"Minimum green level: {self.minimum_green_level}%"
+        if self.export_margin_information is not None:
+            ret = ret + f"Export margin: {self.export_margin_information}\n"
+        else:
+            ret = ret + "Export margin: <unavailable>\n"
         return ret
 
     async def stop_charge(self):
